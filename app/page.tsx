@@ -1,4 +1,3 @@
-```tsx
 "use client";
 
 import { useState } from "react";
@@ -39,7 +38,7 @@ export default function Home() {
         data = JSON.parse(text);
       } catch {
         throw new Error(
-          "Server returned an invalid response while uploading the PDF."
+          "The server returned an invalid response while uploading the PDF."
         );
       }
 
@@ -68,14 +67,16 @@ export default function Home() {
   }
 
   async function askQuestion() {
-    if (!question.trim() || !documentId || loading) return;
+    if (!question.trim() || !documentId || loading) {
+      return;
+    }
 
     const userQuestion = question.trim();
 
     setQuestion("");
 
-    setMessages((prev) => [
-      ...prev,
+    setMessages((previousMessages) => [
+      ...previousMessages,
       {
         role: "user",
         content: userQuestion,
@@ -104,7 +105,7 @@ export default function Home() {
         data = JSON.parse(text);
       } catch {
         throw new Error(
-          "Server returned an invalid response. Please check the Vercel logs."
+          "The server returned an invalid response. Please check the Vercel logs."
         );
       }
 
@@ -114,8 +115,8 @@ export default function Home() {
         );
       }
 
-      setMessages((prev) => [
-        ...prev,
+      setMessages((previousMessages) => [
+        ...previousMessages,
         {
           role: "assistant",
           content: data.answer || "No answer was generated.",
@@ -123,8 +124,8 @@ export default function Home() {
         },
       ]);
     } catch (error) {
-      setMessages((prev) => [
-        ...prev,
+      setMessages((previousMessages) => [
+        ...previousMessages,
         {
           role: "assistant",
           content:
@@ -141,7 +142,9 @@ export default function Home() {
   return (
     <main className="page">
       <section className="app">
+
         <aside className="sidebar">
+
           <div className="logo">
             <div className="logoIcon">✦</div>
 
@@ -152,6 +155,7 @@ export default function Home() {
           </div>
 
           <div className="uploadBox">
+
             <div className="uploadIcon">📄</div>
 
             <h3>Upload Document</h3>
@@ -164,12 +168,15 @@ export default function Home() {
               id="pdf"
               type="file"
               accept=".pdf,application/pdf"
-              onChange={(e) => {
-                setFile(e.target.files?.[0] || null);
+              onChange={(event) => {
+                setFile(event.target.files?.[0] || null);
               }}
             />
 
-            <label htmlFor="pdf" className="chooseButton">
+            <label
+              htmlFor="pdf"
+              className="chooseButton"
+            >
               {file ? file.name : "Choose PDF"}
             </label>
 
@@ -178,22 +185,30 @@ export default function Home() {
               onClick={uploadDocument}
               disabled={!file || uploading}
             >
-              {uploading ? "Processing..." : "Process Document"}
+              {uploading
+                ? "Processing..."
+                : "Process Document"}
             </button>
+
           </div>
 
           <div className="info">
+
             <h4>How it works</h4>
 
             <p>1. Upload your PDF</p>
             <p>2. Document text is processed</p>
             <p>3. Ask your question</p>
             <p>4. AI generates an answer</p>
+
           </div>
+
         </aside>
 
         <section className="chat">
+
           <header className="header">
+
             <div>
               <h1>AI Document Assistant</h1>
               <p>Ask questions about your documents</p>
@@ -203,21 +218,29 @@ export default function Home() {
               <span></span>
               AI Online
             </div>
+
           </header>
 
           <div className="messages">
+
             {messages.length === 0 && (
               <div className="welcome">
-                <div className="welcomeIcon">✦</div>
 
-                <h2>How can I help you?</h2>
+                <div className="welcomeIcon">
+                  ✦
+                </div>
+
+                <h2>
+                  How can I help you?
+                </h2>
 
                 <p>
-                  Upload a PDF document and ask questions
-                  about its content.
+                  Upload a PDF document and ask
+                  questions about its content.
                 </p>
 
                 <div className="examples">
+
                   <button
                     onClick={() => {
                       setQuestion(
@@ -237,64 +260,95 @@ export default function Home() {
                   >
                     Summarize the document
                   </button>
+
                 </div>
+
               </div>
             )}
 
             {messages.map((message, index) => (
+
               <div
                 key={index}
-                className={`message ${
+                className={
                   message.role === "user"
-                    ? "user"
-                    : "assistant"
-                }`}
+                    ? "message user"
+                    : "message assistant"
+                }
               >
+
                 <div className="avatar">
-                  {message.role === "user" ? "You" : "✦"}
+                  {message.role === "user"
+                    ? "You"
+                    : "✦"}
                 </div>
 
                 <div className="bubble">
-                  <p>{message.content}</p>
+
+                  <p>
+                    {message.content}
+                  </p>
 
                   {message.sources &&
                     message.sources.length > 0 && (
+
                       <div className="sources">
-                        <strong>Sources:</strong>
+
+                        <strong>
+                          Sources:
+                        </strong>
 
                         {message.sources.map(
-                          (source, i) => (
-                            <span key={i}>{source}</span>
+                          (source, sourceIndex) => (
+                            <span key={sourceIndex}>
+                              {source}
+                            </span>
                           )
                         )}
+
                       </div>
+
                     )}
+
                 </div>
+
               </div>
+
             ))}
 
             {loading && (
+
               <div className="message assistant">
-                <div className="avatar">✦</div>
+
+                <div className="avatar">
+                  ✦
+                </div>
 
                 <div className="bubble typing">
+
                   <span></span>
                   <span></span>
                   <span></span>
+
                 </div>
+
               </div>
+
             )}
+
           </div>
 
           <div className="inputArea">
+
             <div className="inputBox">
+
               <input
                 value={question}
-                onChange={(e) => {
-                  setQuestion(e.target.value);
+                onChange={(event) => {
+                  setQuestion(event.target.value);
                 }}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") {
+                onKeyDown={(event) => {
+                  if (event.key === "Enter") {
                     askQuestion();
                   }
                 }}
@@ -316,16 +370,19 @@ export default function Home() {
               >
                 ↑
               </button>
+
             </div>
 
             <small>
-              AI responses are generated from your uploaded
-              document.
+              AI responses are generated from your
+              uploaded document.
             </small>
+
           </div>
+
         </section>
+
       </section>
     </main>
   );
 }
-```
