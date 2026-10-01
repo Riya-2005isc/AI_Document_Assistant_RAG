@@ -11,6 +11,10 @@ const globalStore = globalThis as unknown as {
   documents?: Map<string, DocumentStore>;
 };
 
+if (!globalStore.documents) {
+  globalStore.documents = new Map<string, DocumentStore>();
+}
+
 function splitText(text: string, size = 1500) {
   const chunks: string[] = [];
 
@@ -40,10 +44,7 @@ function findRelevantChunks(text: string, question: string) {
       }
     }
 
-    return {
-      chunk,
-      score
-    };
+    return { chunk, score };
   });
 
   return scored
@@ -56,8 +57,8 @@ export async function POST(request: Request) {
   try {
     const body = await request.json();
 
-    const question = body.question?.trim();
-    const documentId = body.documentId;
+    const question = body?.question?.trim();
+    const documentId = body?.documentId;
 
     if (!question) {
       return NextResponse.json(
@@ -87,8 +88,7 @@ export async function POST(request: Request) {
     if (!document) {
       return NextResponse.json(
         {
-          error:
-            "Document not found. Please upload the PDF again."
+          error: "Document not found. Please upload the PDF again."
         },
         { status: 404 }
       );
@@ -117,13 +117,16 @@ export async function POST(request: Request) {
       "https://api.groq.com/openai/v1/chat/completions",
       {
         method: "POST",
+
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${apiKey}`
         },
+
         body: JSON.stringify({
           model: "openai/gpt-oss-20b",
           temperature: 0.2,
+
           messages: [
             {
               role: "system",
@@ -140,8 +143,9 @@ Rules:
 
 DOCUMENT CONTEXT:
 ${context}
-              `
+`
             },
+
             {
               role: "user",
               content: question
@@ -151,7 +155,31 @@ ${context}
       }
     );
 
-    const result = await groqResponse.json();
+    const responseText = await groqResponse.text();
+
+    if (!responseText) {
+      return NextResponse.json(
+        {
+          error: "Groq returned an empty response."
+        },
+        { status: 502 }
+      );
+    }
+
+    let result;
+
+    try {
+      result = JSON.parse(responseText);
+    } catch {
+      console.error("Invalid Groq response:", responseText);
+
+      return NextResponse.json(
+        {
+          error: "Groq returned an invalid response."
+        },
+        { status: 502 }
+      );
+    }
 
     if (!groqResponse.ok) {
       console.error("Groq error:", result);
@@ -174,6 +202,7 @@ ${context}
       answer,
       sources: ["Uploaded PDF"]
     });
+
   } catch (error) {
     console.error("Chat error:", error);
 
