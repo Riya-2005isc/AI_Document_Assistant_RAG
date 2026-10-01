@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { randomUUID } from "crypto";
-import { PDFParse } from "pdf-parse";
+import { extractText } from "unpdf";
 
 export const runtime = "nodejs";
 
@@ -24,53 +24,41 @@ export async function POST(request: Request) {
 
     if (!(file instanceof File)) {
       return NextResponse.json(
-        {
-          error: "Please select a PDF file."
-        },
+        { error: "Please select a PDF file." },
         { status: 400 }
       );
     }
 
-    if (
-      file.type !== "application/pdf" &&
-      !file.name.toLowerCase().endsWith(".pdf")
-    ) {
+    if (!file.name.toLowerCase().endsWith(".pdf")) {
       return NextResponse.json(
-        {
-          error: "Only PDF files are supported."
-        },
+        { error: "Only PDF files are supported." },
         { status: 400 }
       );
     }
 
-    const buffer = Buffer.from(
-      await file.arrayBuffer()
+    const buffer = await file.arrayBuffer();
+
+    if (buffer.byteLength === 0) {
+      return NextResponse.json(
+        { error: "The uploaded PDF is empty." },
+        { status: 400 }
+      );
+    }
+
+    const { text, totalPages } = await extractText(
+      new Uint8Array(buffer),
+      {
+        mergePages: true,
+      }
     );
 
-    if (buffer.length === 0) {
-      return NextResponse.json(
-        {
-          error: "The uploaded PDF is empty."
-        },
-        { status: 400 }
-      );
-    }
+    const documentText = text.trim();
 
-    const parser = new PDFParse({
-      data: buffer
-    });
-
-    const result = await parser.getText();
-
-    await parser.destroy();
-
-    const text = result.text?.trim() || "";
-
-    if (!text) {
+    if (!documentText) {
       return NextResponse.json(
         {
           error:
-            "No readable text was found in this PDF. Please try a text-based PDF."
+            "No readable text was found. Please upload a text-based PDF."
         },
         { status: 400 }
       );
@@ -78,47 +66,33 @@ export async function POST(request: Request) {
 
     const documentId = randomUUID();
 
-    const pages = text
+    const pages = documentText
       .split(/\n\s*\n/)
-      .filter(
-        (page: string) =>
-          page.trim().length > 0
-      );
+      .filter((page) => page.trim().length > 0);
 
-    globalStore.documents!.set(
-      documentId,
-      {
-        text,
-        pages
-      }
-    );
+    globalStore.documents!.set(documentId, {
+      text: documentText,
+      pages,
+    });
 
     return NextResponse.json({
       success: true,
       documentId,
-      pages: result.total || pages.length,
-      message: "PDF processed successfully."
+      pages: totalPages,
+      message: "PDF processed successfully.",
     });
-
   } catch (error) {
-
-    console.error(
-      "PDF upload error:",
-      error
-    );
-
-    const message =
-      error instanceof Error
-        ? error.message
-        : "Unknown PDF processing error.";
+    console.error("PDF upload error:", error);
 
     return NextResponse.json(
       {
         error:
-          "PDF processing failed: " +
-          message
+          error instanceof Error
+            ? error.message
+            : "Unable to process the PDF.",
       },
       { status: 500 }
     );
   }
 }
+
