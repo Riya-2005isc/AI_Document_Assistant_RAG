@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { randomUUID } from "crypto";
-import pdf from "pdf-parse";
+import { PDFParse } from "pdf-parse";
 
 export const runtime = "nodejs";
 
@@ -38,13 +38,19 @@ export async function POST(request: Request) {
 
     const buffer = Buffer.from(await file.arrayBuffer());
 
-    const data = await pdf(buffer);
+    const parser = new PDFParse({
+      data: buffer,
+    });
 
-    if (!data.text.trim()) {
+    const result = await parser.getText();
+
+    await parser.destroy();
+
+    if (!result.text.trim()) {
       return NextResponse.json(
         {
           error:
-            "No readable text was found. This may be a scanned/image-only PDF."
+            "No readable text was found. This may be a scanned/image-only PDF.",
         },
         { status: 400 }
       );
@@ -52,28 +58,26 @@ export async function POST(request: Request) {
 
     const documentId = randomUUID();
 
-    const pages = data.text
+    const pages = result.text
       .split("\n\n")
       .filter((page: string) => page.trim().length > 0);
 
     globalStore.documents!.set(documentId, {
-      text: data.text,
-      pages
+      text: result.text,
+      pages,
     });
 
     return NextResponse.json({
       success: true,
       documentId,
-      pages: data.numpages,
-      message: "PDF processed successfully."
+      pages: result.total,
+      message: "PDF processed successfully.",
     });
   } catch (error) {
     console.error("PDF processing error:", error);
 
     return NextResponse.json(
-      {
-        error: "Unable to process the PDF."
-      },
+      { error: "Unable to process the PDF." },
       { status: 500 }
     );
   }
