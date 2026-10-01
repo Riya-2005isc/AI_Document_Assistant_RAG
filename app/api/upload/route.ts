@@ -22,40 +22,30 @@ export async function POST(request: Request) {
     const formData = await request.formData();
     const file = formData.get("file");
 
-    // Check whether a file was uploaded
     if (!(file instanceof File)) {
       return NextResponse.json(
-        {
-          error: "Please upload a PDF file.",
-        },
+        { error: "Please upload a PDF file." },
         { status: 400 }
       );
     }
 
-    // Check file type
     if (file.type !== "application/pdf") {
       return NextResponse.json(
-        {
-          error: "Only PDF files are supported.",
-        },
+        { error: "Only PDF files are supported." },
         { status: 400 }
       );
     }
 
-    // Convert uploaded PDF to Buffer
     const buffer = Buffer.from(await file.arrayBuffer());
 
-    // Parse PDF using the current pdf-parse API
     const parser = new PDFParse({
       data: buffer,
     });
 
     const result = await parser.getText();
 
-    // Release parser resources
     await parser.destroy();
 
-    // Check whether readable text exists
     if (!result.text || !result.text.trim()) {
       return NextResponse.json(
         {
@@ -66,15 +56,12 @@ export async function POST(request: Request) {
       );
     }
 
-    // Create a unique document ID
     const documentId = randomUUID();
 
-    // Split extracted text into smaller sections
     const pages = result.text
       .split(/\n\s*\n/)
       .filter((page: string) => page.trim().length > 0);
 
-    // Store document temporarily
     globalStore.documents!.set(documentId, {
       text: result.text,
       pages,
@@ -90,9 +77,7 @@ export async function POST(request: Request) {
     console.error("PDF processing error:", error);
 
     return NextResponse.json(
-      {
-        error: "Unable to process the PDF.",
-      },
+      { error: "Unable to process the PDF." },
       { status: 500 }
     );
   }
