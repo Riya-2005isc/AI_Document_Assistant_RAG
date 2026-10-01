@@ -24,33 +24,53 @@ export async function POST(request: Request) {
 
     if (!(file instanceof File)) {
       return NextResponse.json(
-        { error: "Please upload a PDF file." },
+        {
+          error: "Please select a PDF file."
+        },
         { status: 400 }
       );
     }
 
-    if (file.type !== "application/pdf") {
+    if (
+      file.type !== "application/pdf" &&
+      !file.name.toLowerCase().endsWith(".pdf")
+    ) {
       return NextResponse.json(
-        { error: "Only PDF files are supported." },
+        {
+          error: "Only PDF files are supported."
+        },
         { status: 400 }
       );
     }
 
-    const buffer = Buffer.from(await file.arrayBuffer());
+    const buffer = Buffer.from(
+      await file.arrayBuffer()
+    );
+
+    if (buffer.length === 0) {
+      return NextResponse.json(
+        {
+          error: "The uploaded PDF is empty."
+        },
+        { status: 400 }
+      );
+    }
 
     const parser = new PDFParse({
-      data: buffer,
+      data: buffer
     });
 
     const result = await parser.getText();
 
     await parser.destroy();
 
-    if (!result.text || !result.text.trim()) {
+    const text = result.text?.trim() || "";
+
+    if (!text) {
       return NextResponse.json(
         {
           error:
-            "No readable text was found. This may be a scanned or image-only PDF.",
+            "No readable text was found in this PDF. Please try a text-based PDF."
         },
         { status: 400 }
       );
@@ -58,26 +78,46 @@ export async function POST(request: Request) {
 
     const documentId = randomUUID();
 
-    const pages = result.text
+    const pages = text
       .split(/\n\s*\n/)
-      .filter((page: string) => page.trim().length > 0);
+      .filter(
+        (page: string) =>
+          page.trim().length > 0
+      );
 
-    globalStore.documents!.set(documentId, {
-      text: result.text,
-      pages,
-    });
+    globalStore.documents!.set(
+      documentId,
+      {
+        text,
+        pages
+      }
+    );
 
     return NextResponse.json({
       success: true,
       documentId,
-      pages: result.total,
-      message: "PDF processed successfully.",
+      pages: result.total || pages.length,
+      message: "PDF processed successfully."
     });
+
   } catch (error) {
-    console.error("PDF processing error:", error);
+
+    console.error(
+      "PDF upload error:",
+      error
+    );
+
+    const message =
+      error instanceof Error
+        ? error.message
+        : "Unknown PDF processing error.";
 
     return NextResponse.json(
-      { error: "Unable to process the PDF." },
+      {
+        error:
+          "PDF processing failed: " +
+          message
+      },
       { status: 500 }
     );
   }
